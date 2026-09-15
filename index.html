@@ -796,7 +796,10 @@ const OGKEY  = new Set(OGLIST.map(s => KEY(s)));
 const mkTeam = x => (x && (x.team || x.name)) || "";
 const isOgSw = x => !!(x && x.name && !x.isRelay && OGKEY.has(KEY(x)));
 const isMk   = x => !!x && (isHL(mkTeam(x)) || isOgSw(x));
-const mkPill = x => isMk(x) ? `<span class="pill hl">⭐ ${esc(META.highlightLabel||"注目")}</span>` : "";
+/* 札の文字: 所属チームで拾った人は「⭐鹿児島」、県外の所属だが出身で拾った人は「🎓鹿児島出身」（meta.originLabel で変更可） */
+const mkPill = x => !isMk(x) ? ""
+  : isHL(mkTeam(x)) ? `<span class="pill hl">⭐ ${esc(META.highlightLabel||"注目")}</span>`
+  : `<span class="pill hl">🎓 ${esc(META.originLabel || ((META.highlightLabel||"注目")+"出身"))}</span>`;
 if(OG && OG.nm) TABS.find(t => t.id === "og").nm = OG.nm;
 if(OG && OG.em) TABS.find(t => t.id === "og").em = OG.em;
 if(OG && OG.accent) TABS.find(t => t.id === "og").hot = true;   // 色で目立たせる
@@ -1032,6 +1035,16 @@ function render(){
   bind();
   window.scrollTo(0,0);
 }
+/* チップ（チーム・⭐・男女）を押したときは、位置を保ったまま描き直す。
+   チップの帯を横に送って順にチームを見ていく最中に、毎回いちばん左と先頭に戻されるのは面倒（2026-09-15指摘）。 */
+function renderKeep(){
+  const ch = M.querySelector(".chips");
+  const left = ch ? ch.scrollLeft : 0, y = window.scrollY;
+  render();
+  const ch2 = M.querySelector(".chips");
+  if(ch2) ch2.scrollLeft = left;
+  window.scrollTo(0, Math.min(y, Math.max(0, document.documentElement.scrollHeight - window.innerHeight)));
+}
 
 /* ---------- 選手カード ---------- */
 function swCard(s, i, noTeamPill){
@@ -1066,7 +1079,7 @@ function swCard(s, i, noTeamPill){
       ${s.evs.length ? `<span class="sw-bd">${s.evs.length}種目</span>` : `<span class="sw-bd">リレー</span>`}
     </div>
     <div class="sw-r2">
-      <span class="sw-tm">${esc(s.team)}</span>${noTeamPill ? "" : mkPill(s)}
+      <span class="sw-tm">${esc(s.team)}</span>${noTeamPill && isHL(s.team) ? "" : mkPill(s)}
       ${s.grade ? `<span class="pill">${esc(shortGrade(s.grade))}</span>` : ""}
       <span class="pill ${g}">${isF(s.gender)?"女子":"男子"}</span>
     </div>
@@ -1645,9 +1658,9 @@ function bind(){
     q.oncompositionend = () => { ST.q = q.value; const p = q.selectionStart; redrawKeepFocus(p); };
     M.querySelector("#qc").onclick = () => { ST.q = ""; render(); };
   }
-  M.querySelectorAll("[data-g]").forEach(b => b.onclick = () => { ST.gender = b.dataset.g; render(); });
-  M.querySelectorAll("[data-tm]").forEach(b => b.onclick = () => { ST.q = b.dataset.tm; ST.hl = false; render(); });
-  M.querySelectorAll("[data-hl]").forEach(b => b.onclick = () => { ST.hl = !ST.hl; ST.q = ""; if(!ST.hl) ST.hlDay = "all"; render(); });
+  M.querySelectorAll("[data-g]").forEach(b => b.onclick = () => { ST.gender = b.dataset.g; renderKeep(); });
+  M.querySelectorAll("[data-tm]").forEach(b => b.onclick = () => { ST.q = b.dataset.tm; ST.hl = false; renderKeep(); });
+  M.querySelectorAll("[data-hl]").forEach(b => b.onclick = () => { ST.hl = !ST.hl; ST.q = ""; if(!ST.hl) ST.hlDay = "all"; renderKeep(); });
   M.querySelectorAll("[data-hd]").forEach(b => b.onclick = () => { ST.hlDay = b.dataset.hd; render(); });
   M.querySelectorAll("[data-d]").forEach(b => b.onclick = () => { ST.day = b.dataset.d; render(); });
   M.querySelectorAll("[data-no]").forEach(b => b.onclick = () => { ST.pgNo = +b.dataset.no; render(); });
