@@ -1180,7 +1180,8 @@ function viewSw(){
     : "";
   const hlTimeline = () => {
     const rows = [];
-    for(const e of ENTRIES) if(isHL(e.team) && e.entryType !== "リレーのみ") rows.push(e);
+    // 名簿（isMk）と同じ人を拾う。県外所属の「🎓出身」の選手もチーム名では拾えないので選手キーで見る
+    for(const e of ENTRIES) if(isMk(e) && e.entryType !== "リレーのみ") rows.push(e);
     for(const r of RELAYS)  if(isHL(r.team)) rows.push(Object.assign({}, r, {name:r.team + " リレー", isRelay:true}));
     const dayRows = rows.filter(x => (PG_BY_NO.get(x.programNos?.[0])||{}).day === ST.hlDay
                                   && (ST.gender==="all" || (ST.gender==="f") === isF(x.gender)))
