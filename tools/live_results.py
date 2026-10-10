@@ -206,13 +206,19 @@ def main():
     if SOURCE_NOTE not in src:
         data["meta"]["source"] = (src + " ／ " if src else "") + SOURCE_NOTE
 
-    new_json = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+    # ヘッダーの「速報中」の札に、最後に結果が変わった時刻を出す（時刻だけの違いは変更とみなさない）
+    old = json.loads(html[a:b])
+    old_label = old["meta"].pop("liveLabel", None)
+    data["meta"].pop("liveLabel", None)
     n = sum(1 for e in data["entries"] if e.get("result"))
-    if new_json == html[a:b]:
+    if old_label and json.dumps(data, ensure_ascii=False) == json.dumps(old, ensure_ascii=False):
         print(f"変更なし（結果 {n} 件）")
         return 3
+    now = datetime.datetime.now(JST)
+    data["meta"]["liveLabel"] = f"速報 {now.month}/{now.day} {now:%H:%M}"
+    new_json = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
     HTML.write_text(html[:a] + new_json + html[b:], encoding="utf-8")
-    LIVE.write_text(json.dumps({"n": n, "updated": datetime.datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")},
+    LIVE.write_text(json.dumps({"n": n, "v": data["meta"]["liveLabel"], "updated": now.strftime("%Y-%m-%d %H:%M:%S")},
                                ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"更新しました（結果 {n} 件・決勝 {len(finals)} 種目）")
     return 0

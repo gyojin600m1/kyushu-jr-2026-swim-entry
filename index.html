@@ -1786,7 +1786,8 @@ if(LIVE){
       const r = await fetch("live.json?t=" + Date.now(), {cache:"no-store"});
       if(!r.ok) return;
       const j = await r.json();
-      if(typeof j.n === "number" && j.n !== myN) bar.style.display = "block";
+      // 件数が同じでも、決勝のレーン発表や訂正で中身が変わることがある（v＝最終更新の札）
+      if((typeof j.n === "number" && j.n !== myN) || (j.v && META.liveLabel && j.v !== META.liveLabel)) bar.style.display = "block";
     }catch(_){}
   };
   setInterval(check, 20000);
