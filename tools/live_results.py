@@ -81,6 +81,7 @@ def main():
  assert len([e for e in data['entries'] if not e.get('live')])==counts['individualEntries']
  assert len({e['id'] for e in data['entries'] if not e.get('live')})==counts['swimmers']
  assert len(data['program'])==counts['programItems']
+ data['meta'].setdefault('pdfResultSchema',1)
  data['meta']['source']='実施日は日本水泳連盟の公式競技日程による ／ 結果は公式SEIKO種目別結果PDFによる'
  if json.dumps(data,ensure_ascii=False,sort_keys=True)==before:
   print('変更なし（公式PDFとの全件照合済み）');return 3
@@ -89,9 +90,10 @@ def main():
  events=sum(bool(p.get('resultCounts',{}).get('予選')) for p in data['program'])
  stamp=now.strftime('%Y-%m-%d %H:%M JST')
  data['meta']['resultsUpdatedAt']=stamp
+ data['meta']['liveLabel']=f'速報 {now.month}/{now.day} {now:%H:%M}'
  data['meta']['notice']=f'{events}種目：予選{pre}件・決勝{fin}件を反映。\n公式SEIKO種目別結果PDFより。予選と決勝は切り替えて確認できます。\n記録確認：{stamp}。最新の記録は公式速報をご確認ください。'
  new=json.dumps(data,ensure_ascii=False,separators=(',',':'))
  HTML.write_text(html[:marker.start(1)]+new+html[marker.end(1):])
- (ROOT/'live.json').write_text(json.dumps({'n':total,'updated':now.strftime('%Y-%m-%d %H:%M:%S'),'source':'SEIKO official result PDFs','audit':audit},ensure_ascii=False)+'\n')
+ (ROOT/'live.json').write_text(json.dumps({'n':total,'v':data['meta']['liveLabel'],'updated':now.strftime('%Y-%m-%d %H:%M:%S'),'source':'SEIKO official result PDFs','audit':audit},ensure_ascii=False)+'\n')
  print(f'更新しました：{events}種目・予選{pre}件・決勝{fin}件、公式行数と照合済み');return 0
 if __name__=='__main__':sys.exit(main())

@@ -36,7 +36,7 @@ jobs:
         env:
           MINUTES: ${{ inputs.minutes || '50' }}
         run: |
-          set -u
+          set +e -u        # 「変更なし」(終了コード3)や通信エラーでも止めずに次の回へ
           git config user.name "live-results-bot"
           git config user.email "actions@users.noreply.github.com"
 
