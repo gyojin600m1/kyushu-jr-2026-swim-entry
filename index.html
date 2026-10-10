@@ -786,6 +786,7 @@ const TABS = [
   {id:"sw", em:"🔍", nm:"選手"},
   {id:"ev", em:"🏊", nm:"種目"},
   {id:"rs", em:"🏁", nm:"速報", hot:true},
+  {id:"kg", em:"⭐", nm:"鹿児島|結果"},
   {id:"pg", em:"📋", nm:"日程"},
   {id:"rl", em:"🔄", nm:"リレー"},
   {id:"ln", em:"🏁", nm:"組・|レーン"},
@@ -812,7 +813,7 @@ if(OG && OG.nm) TABS.find(t => t.id === "og").nm = OG.nm;
 if(OG && OG.em) TABS.find(t => t.id === "og").em = OG.em;
 if(OG && OG.accent) TABS.find(t => t.id === "og").hot = true;   // 色で目立たせる
 
-const ST = {tab:"sw", resultRound:"auto", resultDay:"all", resultQuery:"", ptG:0, pt:false, q:"", gender:"all", hl:false, hlDay:"all", ev:0, day:"all", pgNo:null, raceKey:null, dpKey:null, open:new Set()};
+const ST = {tab:new URL(location.href).searchParams.get("tab")==="kg"?"kg":"sw", kgOnly:true, kgDay:"all", resultRound:"auto", resultDay:"all", resultQuery:"", ptG:0, pt:false, q:"", gender:"all", hl:false, hlDay:"all", ev:0, day:"all", pgNo:null, raceKey:null, dpKey:null, open:new Set()};
 
 const LIVE = ENTRIES.some(e => e.result) || RELAYS.some(r => r.result);
 document.getElementById("hdT").innerHTML = esc(META.title)
@@ -1038,7 +1039,7 @@ function render(){
   });
   CH_ROWS.length = 0;
   M.innerHTML = ST.pt ? viewPoints()
-    : ({sw:viewSw, rs:viewResults, ev:viewEv, pg:viewPg, rl:viewRl, ln:viewLn, dp:viewDp, og:viewOg, in:viewInfo})[ST.tab]();
+    : ({sw:viewSw, kg:viewKagoshima, rs:viewResults, ev:viewEv, pg:viewPg, rl:viewRl, ln:viewLn, dp:viewDp, og:viewOg, in:viewInfo})[ST.tab]();
   drawPbar();
   bind();
   window.scrollTo(0,0);
@@ -1240,6 +1241,39 @@ function redrawSwRes(){
   CH_ROWS.length = 0;
   r.innerHTML = html.slice(i + '<div id="swRes">'.length, html.lastIndexOf("</div>"));
   bind();
+}
+
+function viewKagoshima(){
+  const all = SWL.filter(sw=>isHL(sw.team));
+  const days = [...new Set(PROGRAM.map(p=>p.day).filter(Boolean))].sort();
+  const inDay = e => ST.kgDay==="all" || PG_BY_NO.get(e.programNos?.[0])?.day===ST.kgDay;
+  const hasResult = e => Object.keys(e.results||{}).length>0;
+  const ready = all.filter(sw=>sw.evs.some(e=>inDay(e)&&hasResult(e)));
+  const list = all.filter(sw=>(ST.gender==="all" || (ST.gender==="f")===isF(sw.gender))
+    && sw.evs.some(e=>inDay(e)&&(!ST.kgOnly||hasResult(e))));
+  const card = sw => {
+    const events=sw.evs.filter(e=>inDay(e)&&(!ST.kgOnly||hasResult(e)))
+      .sort((a,b)=>String(PG_BY_NO.get(a.programNos[0])?.day).localeCompare(String(PG_BY_NO.get(b.programNos[0])?.day))||a.programNos[0]-b.programNos[0]);
+    return `<div class="sw ${gcls(sw.gender)}" style="cursor:default" data-kagoshima-id="${esc(sw.id)}">
+      <div class="sw-r1"><span class="sw-nm">${esc(sw.name)}</span></div>
+      <div class="sw-r2"><span class="sw-tm">${esc(sw.team)}</span>${sw.grade?`<span class="pill">${esc(shortGrade(sw.grade))}</span>`:""}<span class="pill ${gcls(sw.gender)}">${gmark(sw.gender)}</span></div>
+      ${events.map(e=>{const p=PG_BY_NO.get(e.programNos[0])||{}, rs=Object.values(e.results||{});
+        return `<div style="margin-top:10px;padding-top:8px;border-top:1px dashed var(--border)"><div style="font-weight:700;overflow-wrap:anywhere">${esc(e.event)}</div><div style="font-size:11px;color:var(--muted)">${esc(p.day||"")}</div>
+          ${rs.length?rs.map(r=>`<div class="result-detail">${resPill({...e,result:r})}</div>`).join(""):`<div class="result-detail"><span class="pill">速報待ち</span></div>`}
+          ${e.results?.["予選"]&&!e.results?.["決勝"]&&p.resultCounts?.["決勝"]?`<div style="font-size:11px;color:var(--muted);margin-top:5px">決勝出場なし</div>`:""}
+          ${rs.length?`<button class="result-link" style="width:100%;margin-top:8px;background:var(--card2)" data-result-no="${p.no}">この種目の結果を見る →</button>`:""}</div>`;
+      }).join("")}</div>`;
+  };
+  let body="";
+  for(const female of [true,false]){
+    const children=list.filter(sw=>isF(sw.gender)===female).sort((a,b)=>teamRank(a.team)-teamRank(b.team)||a.name.localeCompare(b.name,"ja"));
+    if(children.length)body+=`<div class="gsec ${female?"f":"m"}">${female?"🔴 女子":"🔵 男子"}<span class="n">${children.length}名</span></div>`+children.map(card).join("");
+  }
+  return `<div class="note">鹿児島の選手 <b>${all.length}名</b>の結果だけを表示します。選手カードで予選・決勝をまとめて確認できます。<br>記録確認：${esc(META.resultsUpdatedAt||"")}</div>
+    <div class="seg"><button data-kg-only="1" class="${ST.kgOnly?"on":""}">結果あり</button><button data-kg-only="0" class="${!ST.kgOnly?"on":""}">全員・速報待ち</button></div>
+    <div class="seg"><button data-g="all" class="${ST.gender==="all"?"on":""}">全員</button><button data-g="f" class="${ST.gender==="f"?"on f":""}">🔴 女子</button><button data-g="m" class="${ST.gender==="m"?"on m":""}">🔵 男子</button></div>
+    <select id="kgDay" aria-label="鹿児島の結果の日程"><option value="all">全日程</option>${days.map(d=>`<option ${ST.kgDay===d?"selected":""}>${esc(d)}</option>`).join("")}</select>
+    <div class="count">結果あり ${ready.length}名 ／ 表示 ${list.length}名</div>${body||`<div class="empty">該当する結果はまだありません。<br>「全員・速報待ち」で出場予定を確認できます。</div>`}`;
 }
 
 function viewResults(){
@@ -1691,6 +1725,8 @@ function md(t){ return esc(t).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/
 
 /* ---------- イベント配線 ---------- */
 function bind(){
+  M.querySelectorAll("[data-kg-only]").forEach(b=>b.onclick=()=>{ST.kgOnly=b.dataset.kgOnly==="1";render();});
+  const kgDay=M.querySelector("#kgDay");if(kgDay)kgDay.onchange=()=>{ST.kgDay=kgDay.value;render();};
   M.querySelectorAll("[data-round]").forEach(b=>b.onclick=()=>{ST.resultRound=b.dataset.round;render();});
   M.querySelectorAll("[data-result-no]").forEach(b=>b.onclick=()=>{ST.ev=EV_BY_NO.get(+b.dataset.resultNo);ST.resultRound=b.dataset.round||"auto";ST.tab="ev";render();window.scrollTo(0,0);});
   const rd=M.querySelector("#resultDay");if(rd)rd.onchange=()=>{ST.resultDay=rd.value;render();};
