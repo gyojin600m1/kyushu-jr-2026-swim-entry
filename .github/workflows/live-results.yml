@@ -1,6 +1,6 @@
 name: 速報を自動で取り込む
 
-# 大会中（10/10〜12 の 8:40〜17:50 ごろ）、日本水泳連盟 Live Results を1分おきに見て、
+# 大会中（10/10〜12 の 8:40〜17:50 ごろ）、公式SEIKO種目別結果PDF を1分おきに見て、
 # 九州ジュニアの結果が増えていたら index.html と live.json を更新して push する。
 # 1回の実行は約50分。20分おきに次の実行が予約されるので、途切れずに見張り続ける。
 # 今すぐ取り込みたいときは Actions → この workflow → Run workflow。
@@ -28,6 +28,9 @@ jobs:
     timeout-minutes: 58
     steps:
       - uses: actions/checkout@v4
+
+      - name: PDF読取を準備
+        run: python3 -m pip install "pdfplumber==0.11.7"
 
       - name: 速報を見張る（約50分）
         env:
