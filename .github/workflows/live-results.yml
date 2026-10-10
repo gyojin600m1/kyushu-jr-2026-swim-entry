@@ -9,6 +9,11 @@ on:
     - cron: "40 23 9-11 10 *"      # 日本時間 8:40（10/10〜12）
     - cron: "*/20 0-8 10-12 10 *"  # 日本時間 9:00〜17:40（10/10〜12）
   workflow_dispatch:
+    inputs:
+      minutes:
+        description: "何分見張りますか（1なら1回だけ取り込んで終わる）"
+        required: false
+        default: "50"
 
 concurrency:
   group: live-results
@@ -25,12 +30,14 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: 速報を見張る（約50分）
+        env:
+          MINUTES: ${{ inputs.minutes || '50' }}
         run: |
           set -u
           git config user.name "live-results-bot"
           git config user.email "actions@users.noreply.github.com"
 
-          END=$(( $(date +%s) + 50 * 60 ))
+          END=$(( $(date +%s) + MINUTES * 60 ))
           GAP=180          # push の間隔（秒）。Pages の作り直しが詰まらないように
           LAST_PUSH=0
           MODE=""          # 1回目は全種目、2回目からは今日の種目だけ
